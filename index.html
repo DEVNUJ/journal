@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Ledger</title>
+    <style>
+        /* --- CSS STYLES --- */
+        :root {
+            --bg-color: #E8E4D9;
+            --text-color: #333;
+            --highlight-bg: #3C4A5B; /* Dark Blue */
+            --highlight-text: #F2C94C; /* Gold/Yellow for contrast */
+            --border-color: #B0B0B0;
+            --font-stack: 'Courier New', Courier, monospace;
+        }
+
+        /* DISABLE TEXT SELECTION GLOBALLY */
+        body {
+            font-family: var(--font-stack);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            
+            /* Prevent selecting text */
+            -webkit-user-select: none; /* Safari */
+            -moz-user-select: none; /* Firefox */
+            -ms-user-select: none; /* IE10+/Edge */
+            user-select: none; /* Standard */
+        }
+
+        h1 {
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid var(--text-color);
+            display: inline-block;
+            padding-bottom: 5px;
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 30px;
+            width: 100%;
+            max-width: 1400px;
+            align-items: start;
+        }
+
+        /* --- CALENDAR SECTION --- */
+        .calendar-container {
+            grid-column: 1 / -1;
+            margin-bottom: 30px;
+            background: #fff; /* Slight container background for calendar */
+            border: 1px solid var(--text-color);
+            padding: 20px;
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .calendar-nav-btn {
+            padding: 5px 15px;
+            border: 1px solid var(--text-color);
+            background: #fff;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+        }
+        
+        .calendar-nav-btn:hover {
+            background: #eee;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            border-top: 1px solid var(--border-color);
+            border-left: 1px solid var(--border-color);
+        }
+
+        .calendar-day-label {
+            text-align: center;
+            padding: 10px 0;
+            font-weight: bold;
+            font-size: 0.8em;
+            border-bottom: 1px solid var(--border-color);
+            border-right: 1px solid var(--border-color);
+            background-color: #f4f2ed;
+        }
+
+        .calendar-day {
+            min-height: 80px; /* Taller boxes like the screenshot */
+            border-bottom: 1px solid var(--border-color);
+            border-right: 1px solid var(--border-color);
+            padding: 5px;
+            font-size: 0.8em;
+            background-color: #fff;
+            cursor: default; /* Default cursor unless it has an entry */
+            position: relative;
+        }
+
+        /* Style for days that have a journal entry */
+        .calendar-day.has-entry {
+            background-color: var(--highlight-bg);
+            color: #fff;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        
+        .calendar-day.has-entry:hover {
+            opacity: 0.9;
+        }
+        
+        /* Style for the currently selected day */
+        .calendar-day.active-date {
+            box-shadow: inset 0 0 0 3px var(--highlight-text);
+        }
+
+        /* --- SIDEBAR SECTION --- */
+        .sidebar {
+            border: 1px solid var(--text-color);
+            padding: 20px;
+            background-color: #f4f2ed;
+        }
+
+        .sidebar-title {
+            font-weight: bold;
+            margin-bottom: 20px;
+            display: block;
+            text-transform: uppercase;
+            font-size: 0.9em;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.7em;
+            font-weight: bold;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            color: #666;
+        }
+
+        .form-input, .form-textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            background-color: #fff;
+            font-family: inherit;
+            font-size: 0.85em;
+            box-sizing: border-box;
+            color: #555;
+        }
+
+        .form-textarea {
+            resize: none;
+            height: 120px;
+        }
+        
+        .tag-buttons {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .tag-btn {
+            flex: 1;
+            padding: 5px 0;
+            border: 1px solid var(--text-color);
+            background: #fff;
+            font-family: inherit;
+            font-size: 0.7em;
+            text-align: center;
+            cursor: default;
+        }
+        
+        .tag-btn.active-tag {
+            background-color: var(--highlight-bg);
+            color: #fff;
+        }
+        
+        .confirm-btn {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--highlight-bg);
+            color: #fff;
+            border: none;
+            font-family: inherit;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-top: 10px;
+            font-size: 0.8em;
+            letter-spacing: 1px;
+        }
+
+        /* --- JOURNAL ENTRY DISPLAY SECTION --- */
+        .journal-display {
+            border: 2px dashed var(--text-color);
+            padding: 40px;
+            background-color: #E8E4D9; /* Matching background */
+            min-height: 600px;
+            position: relative;
+        }
+        
+        .entry-meta-top {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid #999;
+            padding-bottom: 5px;
+            margin-bottom: 20px;
+            font-size: 0.8em;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .entry-title {
+            font-size: 1.8em;
+            font-weight: bold;
+            margin-bottom: 20px;
+            line-height: 1.2;
+            color: #000;
+        }
+
+        .entry-body {
+            font-size: 1em;
+            line-height: 1.6;
+            white-space: pre-wrap; /* Preserves line breaks */
+            color: #333;
+        }
+        
+        .no-entry-selected {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            font-style: italic;
+            color: #666;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+        }
+        
+        .journal-content {
+            display: none;
+        }
+        .journal-content.active {
+            display: block;
+        }
+        
+        .delete-btn-fake {
+            display: block;
+            text-align: right;
+            color: #aa0000;
+            font-size: 0.7em;
+            margin-top: 50px;
+            font-weight: bold;
+            cursor: default;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>The Ledger</h1>
+
+    <div class="main-container">
+        <div class="calendar-container">
+            <div class="calendar-header">
+                <button id="prev-month" class="calendar-nav-btn">&lt;</button>
+                <span id="month-year-display">OCTOBER 2025</span>
+                <button id="next-month" class="calendar-nav-btn">&gt;</button>
+            </div>
+            <div class="calendar-grid" id="calendar-grid">
+                <div class="calendar-day-label">S</div>
+                <div class="calendar-day-label">M</div>
+                <div class="calendar-day-label">T</div>
+                <div class="calendar-day-label">W</div>
+                <div class="calendar-day-label">T</div>
+                <div class="calendar-day-label">F</div>
+                <div class="calendar-day-label">S</div>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <span class="sidebar-title">LOG ENTRY</span>
+            
+            <div class="form-group">
+                <label class="form-label">DATE</label>
+                <input type="text" class="form-input" id="sidebar-date" value="--" disabled>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">TAG</label>
+                <div class="tag-buttons" id="sidebar-tags">
+                    <div class="tag-btn">FOCUS</div>
+                    <div class="tag-btn">GRIND</div>
+                    <div class="tag-btn">CHILL</div>
+                    <div class="tag-btn">GYM</div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">HEADLINE</label>
+                <input type="text" class="form-input" id="sidebar-headline" value="" disabled>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">DETAILS</label>
+                <textarea class="form-textarea" id="sidebar-details" disabled>Select a date to view entry...</textarea>
+            </div>
+            
+             <div class="form-group">
+                <label class="form-label">IMAGE</label>
+                 <div style="border:1px solid #999; padding:5px; background:#eee; font-size:0.7em;">
+                     Choose file... No file chosen
+                 </div>
+            </div>
+
+            <button class="confirm-btn">CONFIRM LOG</button>
+        </div>
+
+        <div class="journal-display">
+            <div id="no-entry-msg" class="no-entry-selected">
+                Select a dark blue date to read the entry.
+            </div>
+            <div id="journal-content" class="journal-content">
+                <div class="entry-meta-top">
+                    <span id="display-date"></span>
+                    <span id="display-tag"></span>
+                </div>
+                <div id="display-title" class="entry-title"></div>
+                <div id="display-body" class="entry-body"></div>
+                <div class="delete-btn-fake">[ DELETE ENTRY ]</div>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        /* ====================================================================
+        --- JOURNAL DATABASE ---
+        ====================================================================
+        */
+        const journalData = {
+            "2025-08-24": {
+                tag: "CHILL",
+                headline: "OMG I'M GOING TO UK!!!",
+                details: `Hello hello my digital diary!! I am so excited to keep track of me and my feelings as i travel alone for the very first time !! also guess what!???! I'm traveling in a BUSINESS CLASS!!! Well not for the entire journey but from kathmandu to doha. First time traveling abroad alone and traveling in business class.. Hehehe
+
+I am quite excited and honestly quite surprised as well. I thought I would tear up a bit but no! I have been very happy and excited.. I mean I do feel bad leaving my parents and friends but I think my dad has been so positive and has motivated me to make sure I make most of my journey and new phase of my life. Mom on the other hand is crying like always and dai is pretty chill and excited for me! I guess i do see a reason why mom is sad, i mean i was the only one who used to make her laugh with silly jokes and all… baba is quiet busy ani she will defo miss me… I have promised her that I will call her everyday as a reassurance that she will not feel alone.
+
+One another thing i realised that the amount of people who are connected with me. While i was on my way to airport, i talked to like 12 people on phone.. I mean 16 aren't that much but 16 people feeling a need to call personally and wish me good luck for the journey seems quite remarkable to me..Even Tulsi Uncle called lol! Yeah i bet they gonna miss me AHAHAHA..
+
+Time: 1:03 NPT
+Well i think it is 1:03 cause of my phone says so… i dont know if this is nepali time or else.
+
+OMG I CAN NOT GO BACK TO ECONOMY AFTER THIS!!! I am having a feast.
+10:50 AM: Take off
+What I ate: Lime and mint, Cappuccino coffee, Cashew and almonds, Qatari date, Qatari coffee.
+
+11:40: Somewhere in pakistan
+Lunch: Bread with tomato chilly olive oil, Poached lobster, Pan seared Chicken breast.
+
+12-2: Slept for almost an hour 30 (One of those extendable steats they are so comfortable!) Got myself iced americano after i woke up.
+2:08: Started decent.
+2:57: Touch down and outside temperature is 43 degrees.`
+            },
+            "2025-08-25": {
+                tag: "CHILL",
+                headline: "TIRED AF",
+                details: `Date: 25th August
+Time : 1:23 AM
+
+I AM SO TIRED! It was all fun when I was exploring the airport and lounges but I'm just done. I finished 3 2 hour long sidemen videos and even finished a whole paper by Isaiah Berlin. Thank god it's almost time for my flight.
+
+I needed to change the terminal and I realised my plane is one of those double decker planes with 4 engines! This is the only thing that is making me excited, I just want to reach London asap!
+
+Location: Hamad International Airport (Doha)
+Status: Waiting (Endlessly)
+Time: God knows. I've been in this lounge for nine hours. Time isn't real here.
+
+I am currently existing in that weird, air-conditioned purgatory between where I came from and where I'm going. Nine hours in a lounge is enough time to rethink your entire life trajectory, but instead, I chose to be academic. I sat here, surrounded by the low hum of travelers and the smell of stale coffee, reading Isaiah Berlin and Terry Eagleton. It feels almost performative, doing syllabus reading in a transit hub, but honestly? It's a coping mechanism. I found myself gripping onto the texts not just to learn, but to build a safety net.
+
+There's this critical voice in my head telling me that this time has to be different. I have this overwhelming urge to be "serious" from the very first second. It's a reflection of my anxiety, I think—the idea that if I front-load the effort, if I grind before the classes even start, I can somehow guarantee a "good" outcome.
+
+The Logistics (aka The Impending Crash):
+The flight to London is next. 6 or 7 hours. I land at 6:25 AM.
+Then the sprint begins:
+Land in the UK (Morning).
+Meet faculty and the US crew around 9:30 AM.
+Head to Bath ("Path").
+
+I feel confident, but it's fragile confidence. It's the adrenaline of the "new thing" i guess… nvm but I'm ready to start. I just need this plane to actually take off first.`
+            },
+            "2025-08-31": {
+                tag: "FOCUS",
+                headline: "Culture Shock: The Pavement Epiphany",
+                details: `I've been here for a week now, and I can't stop looking at the pavement. It's clean. Like, actually clean.
+
+It sounds so stupid to write that down. If I told anyone who grew up here that I'm obsessed with their sidewalk hygiene, they'd look at me like I'm insane. For them, this is just... baseline. This is just "Tuesday." But coming from where I come from, this level of urban planning feels like a hallucination.
+
+Everything here makes sense. The streets are laid out with intention. There's greenery exactly where it should be, maintained by invisible hands. The houses aren't just piled on top of each other in a desperate scramble for space; they have room to breathe. It's so curated. And the color—everything is this uniform, golden-honey stone. It makes the whole city look like it was carved out of a single block of expensive cheese. It screams "wealth" without even trying.
+
+But that's where the critical part of my brain starts short-circuiting.
+Back home, asking for a clean street or a patch of grass that isn't covered in trash is seen as a radical political demand. We have to fight for the bare minimum. Here, the government just... does it. The infrastructure works. And it makes me furious, honestly. Why is "cleanliness" a luxury for us? Why is "proper planning" something I have to fly across the ocean to experience?
+
+Then I look at the people here. They give off this intense "old money" energy. It's not the flashy, logo-heavy wealth; it's that quiet, confident, "my grandfather owned a bank" kind of wealth. Everyone looks like they work in high finance or corporate law, wearing those quarter-zips and looking stress-free.
+
+I catch myself wondering: Could they survive a week in my city? Probably not. They'd be exhausted by the chaos within an hour. They are protected by this bubble of order. They don't know the fatigue of navigating a city that fights you every step of the way.`
+            },
+            "2025-09-02": {
+                tag: "FOCUS",
+                headline: "Exhausted, damp, but strangely triumphant.",
+                details: `Location: Bath, UK
+Hola Diary,
+Okay, ground rules before we start: I am told that I have to keep a journal so I'm going to try to be a bit more polished with my grammar this time. To be fair, I feel like being in this city, with its fancy Georgian stone and people who speak in perfectly formed paragraphs, I should at least try to upgrade my internal software.
+
+The first week has been a blur. A chaotic, rainy, beautiful blur.
+I started with the basics. Orientation was exactly what you'd expect (a lot of people talking at us, telling us things we probably need to know but definitely won't remember) But the groceries? That felt real. Navigating a British supermarket (Sainsbury Local) is an anthropological study in itself.
+
+Omg we went to the Roman Baths!! I have to admit, I was prepared to be underwhelmed cause it's just a pool, right? But it is genuinely fascinating!! I think I was not cultured before this week.. I didn't used to get so excited about history stuff but since this visit I will definitely try to appreciate it more.
+Ok so talking about Roman Bath: standing there, looking at that green, steaming water, I realized the sheer audacity of the Romans in a sense. They found this hot spring bubbling up from the earth and decided, "Yes, we shall build a complex leisure center here." The engineering is insane to be honest.
+
+We also had the most UK experience: drinking coffee in the rain!!! We were holding umbrellas, huddled together and sipping hot coffee (questionable since the water was all over) while the sky poured down on us. It felt ridiculous, but in a very weird way perfect also? It's atmospheric. Back home, rain is usually a nuisance or a disaster. Here, it's an accessory. It's part of the aesthetic.
+
+Finally, the trip to Stonehenge and Salisbury.
+Salisbury Cathedral was massive… I don't know if it was the landscape or something else, but the building kind of sat down? Does this make sense?
+But Stonehenge... Stonehenge is a trip. It's literally rocks in a field, but when you stand there and think about the effort it took to drag those stones there thousands of years ago, without wheels, without machines... it breaks your brain.
+So, that was Week One. Highs, lows, rain, curry, ancient stones, and bowling shoes. If this is how the semester starts, I think I'm going to be okay.`
+            },
+            "2025-09-07": {
+                tag: "CHILL",
+                headline: "Discussion, Pints, and Architecture",
+                details: `Namaskar Diary,
+The dust has settled from orientation, and the reality of university life is here now: the classes, the reading, the routine. This has slapped me with a refreshing cold dose of reality. The most profound shift this week wasn't the content of the classes, but the delivery. That first discussion-based class, revolving around the "Better, Worlds" topic... was so different than I am used to. Back home in Nepal, raising your hand was a tacit admission of failure. In a sense it signaled that you hadn't grasped the material or hadn't studied hard enough. Here it's the exact opposite! A teacher's understanding and openness encourages interaction and speaking up isn't just accepted, but in fact it is valued!
+
+Outside of the classroom, the cultural education continued at The Raven (of course). Two pints, and it was enough to relax me without losing it lol. One interesting thing I'm fascinated by is how different the beer is here. It's sweeter, less of that harsh, raw alcohol taste. It's "good" in a comfortable, drinkable way, not a punchy way. The ambiance of a British pub is unmatched. It's an art form.
+
+Speaking of the natural world, I've established a new habit: 6 AM walks. It truly is the best way to get that "fresh slap to the face" and jumpstart the day. Today's walk up to Camden Crescent was stunning. Seeing the city laid out from that vantage point, tracing the curves of the paths and the general "bone shape" of the geography, made my architecture class suddenly click! Andrew (architecture teacher) pointed out to us about the city being prone to flooding, and thus the deliberate, non-linear layout makes perfect sense now. This week has been less about studying and more about connecting the dots between my studies and the world around me.`
+            },
+            "2025-09-10": {
+                tag: "FOCUS",
+                headline: "Furious. Just absolutely furious.",
+                details: `I'm sitting here in this perfectly manicured city, surrounded by old stone and polite people, but my head is screaming.
+I just saw the news. I can't even process it. September 9th and 10th are going to be burned into my brain forever. There are massive protests back home: Gen Z, my generation, out on the streets, and the government is shooting them? And not just "dispersing crowds." They are literally killing kids.
+
+I saw the pictures. Students. Literal students in their school uniforms, backpacks still on their shoulders, shot dead in the head.
+What the hell is wrong with my country? How do you justify that? How does a police officer look at a kid holding a school bag and pull the trigger? It makes me sick. It makes me physically ill to sit here in my safe little dorm room while people younger than me are bleeding out on the pavement asking for basic rights.
+
+And the worst part? The shame. I feel so incredibly embarrassed. When people here ask me where I'm from or what's the situation back home, I hesitate. I don't want to say the name. I don't want to be associated with a place that eats its own children. A place so broken, so managed by incompetence and cruelty, that a school uniform is a target.
+
+I'm supposed to be here studying, building a future, acting "serious" about my academics. But how does any of this matter when home is burning? It feels like a betrayal to be safe. It feels like a betrayal to claim that country as mine right now.
+
+I hate this helplessness. I hate that I'm scrolling through Twitter/X, watching my people die in real-time, and then I have to close my phone and pretend to care about architecture or urban planning.`
+            },
+            "2025-09-19": {
+                tag: "FOCUS",
+                headline: "Bittersweet / Determined?",
+                details: `Update:
+First things first: the situation back home has shifted. There's a new government established, and things feel... stable? Or at least, the immediate fire has been put out. It feels like we can breathe for a second.
+
+But then, I had a call with my dad.
+This hit me harder than I expected. You have to understand, my father is a government servant. He has always been the patriot, the one telling me, "Go, learn, but come back. We need you here to build the nation." He was the optimist when I was the cynic.
+Today, he told me: "Try to find a good job in the United States if you can."
+Hearing that from him... it broke me. It really broke me. It's one thing for me to be frustrated, but when the people who dedicated their lives to the system stop believing in it? That feels like the end of something. It feels like the country is actively hating us, pushing us away. It makes me wonder what I'm even working for if the goalposts have shifted from "return and rebuild" to "escape and survive."
+
+Well now I've been trying to distract myself with work. I'm deep into my architecture essay outline, doing the research, and I'm realizing something really depressing. Every country seems to have a "style." Bath has this honey-colored stone uniformity. London has its mix. But my beautiful country? We don't have a style. We have random, ugly concrete.
+
+Speaking of identity, I went to LONDON!
+Oh my god. It is so different from Bath. Bath is this sleepy, perfect museum piece. London is a monster. The streets are narrow and winding, but then you look up and there are these massive glass shards piercing the sky right next to classical stone columns. It's overwhelming.
+
+I'm "locked in." I spent the whole day just working, and it felt good to be productive. My mentors and professors here have been amazing—they know things are tough back home and they've been reaching out. That kindness matters so much to me!
+So, I'm going to take my dad's advice with a grain of salt for now. I'm here. I'm learning. I'm observing. And whether I go back or go somewhere else, I'm going to make sure I'm good enough to make a difference wherever I land.`
+            },
+            "2025-09-28": {
+                tag: "CHILL",
+                headline: "Accomplished, sore, and socially confused.",
+                details: `So, I just got back from Oxford. And honestly? It was a dream come true.
+The headline is this: We did it. We visited all 43 colleges in Oxford. It took three days and 60,000 steps, and my legs feel like jelly, but seeing that much history in one go was incredible.
+
+However, I can't talk about this trip without talking about Jason. My flatmate. My friend(?). I don't even know anymore.
+He woke me up at 5:00 AM. Five in the morning. Just so we could "complete the challenge" before classes started. When I tried to negotiate—you know, like a normal human who wants to sleep in—he shut me down completely. He literally looked at me and said, "If you don't come, I'll just go with someone else and finish it without you."
+No compromise. No "okay, maybe 7 AM." Just this weird, aggressive ultimatum. It's like he doesn't view me as a friend to share an experience with, but as a tool to help him tick a box on a list. It makes me feel like our friendship is just a business transaction to him.
+
+Anyway, away from the drama, we went punting. You can't go to Oxford and not punt. It's the law. I went in thinking, "How hard can it be? It's just a stick and a boat." Turns out: very hard. But, by the end? I locked in. I actually figured out the steering. Gliding down the river, slightly wet, holding the pole... I felt like a proper Oxford student.
+
+We also took a walking tour: "Uncomfortable Oxford" tour. Honestly, the guide was fantastic. He didn't just give us the shiny, brochure version of the university. We learned about how so many of these majestic buildings have deep connections to the slave trade and colonial history. There was one specific figure he talked about whose legacy is everywhere, yet it's built on such exploitation. It was a really necessary reality check amidst all the beauty.
+
+My biggest reflection on Oxford compared to Bath or London is the density. Bath is a city that has a university. London is a metropolis that contains universities. But Oxford? Oxford is the university.`
+            },
+            "2025-10-05": {
+                tag: "FOCUS",
+                headline: ": Soaked, sentimental, and slightly deaf from chanting.",
+                details: `The Identity Shift (I am no longer the baby!!!):
+Big news from back home: My uncle is a dad again. My mom sent me a picture of the baby, my new cousin, and she is just this tiny, tiny little thing.
+It triggered such a weird and specific feeling. For my entire life, I have been the youngest in the family. That was my role: the baby Anuj, the one everyone looks out for. But looking at her photo, I realized I've lost that "privilege." I'm not the youngest anymore. But instead of feeling jealous, I feel... ready? I feel this urge to be a "big brother" figure to her. It's a special kind of responsibility. It marks a shift in me, I think. I'm growing up, literally and metaphorically.
+
+Academically, I'm deep in the Parthenon research. My brain is genuinely boggled. We are talking about a structure built in BC. The sheer engineering skill, the geometry, the optical illusions they used to make it look straight... it's immense.
+We also visited the Victoria Art Gallery for class. And I have to admit, living in the UK is changing me.
+Old Me: Would look at a painting, say "cool picture," and walk away.
+New Me: I'm actually standing there, looking for symbolism, analyzing the brushstrokes. I'm becoming an "artsy" person.
+
+London: The Aura of Westminster:
+We went to London again for the UK Politics trip. The Houses of Parliament: You can physically feel the Aura of this place. It's heavy.
+The War Rooms: From Palace to Bunker:
+We also went to the Churchill War Rooms. This was the most critical reflection of the trip for me. You think about Winston Churchill—a man born in Blenheim Palace, living in absolute luxury—forcing himself to live in this cramped, scrambled bunker underground to plot World War II.
+
+The Rugby Experience: Soaked & Screaming:
+Okay, complete tonal shift. I went to my first British stadium game. Bath Rugby. It was pouring rain. I mean, biblical rain. And it didn't matter at all. I was soaked to the bone. I was drinking cider (or beer? I lost track). And I was chanting "COME ON YOU BATH" at the top of my lungs. My friends were looking at me like, "What happened to Anuj?" because I was so locked in.`
+            },
+            "2025-10-12": {
+                tag: "FOCUS",
+                headline: "Nervous excitement mixed with pure nostalgia.",
+                details: `The Cotswolds: Class vs. Cash
+We went to the Cotswolds this week, and it was like stepping into a postcard. Just proper, typical English village vibes.
+It made me think about something Emma from ASE said regarding social hierarchy in the UK. She mentioned how "class" here isn't necessarily linked to "liquid cash." You can be high-class, have ties to royalty, and live in a massive estate, but not actually have a huge bank balance. Seeing Chavenage House really drove that home. It's this massive, historic building (apparently where they filmed Rivals!), and it screams "power" and "history." But the vibe isn't flashy like new money. It feels different.
+
+Academic Update:
+I finally finished the abstract for my main research project! It's a relief to have that submitted.
+
+The Manchester Dilemma (Jason Edition):
+So, next week is the big trip. We are going to Manchester—me and Jason. We leave Wednesday and come back Sunday. We have the hotels booked, and logistically, it should be fine. But emotionally? I'm praying it goes well. After the Oxford 5 AM incident and the laundry app drama, I'm just hoping he stays chill. I don't want to spend five days walking on eggshells. But we're locked in now.
+
+The Dream: Old Trafford
+The real reason I'm going, though? Manchester United.
+I can't even explain what this means to me. I've been supporting this team since I was a kid—since I was 13. I have this vivid memory of watching them win the Premier League back in the day with my uncle. He used to invite his friends over, and even though we were thousands of miles away, screaming at a TV screen at 1:00 AM or 3:00 AM, the passion was real.
+Those nights shaped me. The sleep deprivation, the cheering, the connection with my uncle—it all revolved around this club. Back then, the idea of actually being in Manchester, walking into Old Trafford, and seeing a game live? It was physically impossible. It was just a pixelated dream on a screen.
+And now? I'm going. I'm actually going to be there. It feels surreal. It's like three different dreams colliding at once.`
+            },
+            "2025-10-26": {
+                tag: "FOCUS",
+                headline: "Emotionally Fulfilled / Financially Annoyed",
+                details: `"Take Me Home, United Road"
+THE DREAM: Old Trafford
+I made it. I actually made it. This might have been the best three nights of my entire life. I cannot believe I was standing in the Stretford End, watching Manchester United play Brighton. And we won! 4-2! It wasn't just a game for me ! rather a religious experience.
+When the crowd started singing, "Country roads, take me home, to the place I belong, to Old Trafford, to see United play..." I completely lost it. I was shouting my lungs out, but inside, I was tearing up. I felt this intense sense of belonging, like I had finally arrived at the place I've been staring at on a TV screen since I was 13.
+The scale of it is impossible to understand until you are there. On television, the pitch looks manageable. In person? It's massive. 75,000 people screaming. The noise vibrates in your chest.
+
+Now, let's talk about the thing that almost ruined the trip. Jason.
+I am so furious I could scream. Before the trip, I was explicitly clear: I want to stay in a hostel. I'm using my saved-up money, I'm on a budget, and we were hardly going to be in the room anyway. I sent him links.
+And what does he do? Twenty minutes after I send him a hostel link, he replies with a confirmation screenshot for a 4-Star Hotel. He didn't ask. He didn't discuss. He just booked it and said, "It's 80 pounds per person per day."
+EIGHTY POUNDS. Per day!
+I confronted him, obviously. I asked him why he didn't check with me. And he sends me—I kid you not—a ChatGPT-generated cost-benefit analysis of why the hotel is "financially beneficial" compared to a hostel. Is he insane? He's trying to gaslight me with AI! The truth is, he's using me as an ATM. He swipes his dad's credit card for the points or whatever, and then expects me to hand him cash.
+
+To escape Jason, I spent a lot of time exploring Manchester alone. And honestly? I think I love this city.
+I might get heat for this, but: Manchester > London.
+London is overwhelming. Manchester feels alive. It's a city of contrasts. You have the deep industrial roots—the red brick, the canals, the heavy steel—right next to these sleek, modern glass skyscrapers.`
+            },
+            "2025-11-02": {
+                tag: "FOCUS",
+                headline: "Overwhelmed, loved, and full of cake.",
+                details: `I woke up today thinking, "Okay, let's just get through this."
+It's October 27th. My birthday. Usually, back in Nepal, my birthday falls during the holidays, so I've never really had that "school birthday" experience where you walk into class and everyone makes a fuss. I honestly didn't think anyone here would remember.
+I walked into Richard's class, still half-asleep, and—BAM. The entire room erupted. They were singing my name. They were singing "Happy Birthday." I stood there in the doorway, probably looking terrified, but inside, I was melting.
+
+Richard called me up to the front, shook my hand firmly, and congratulated me. It felt so formal yet so warm. I've never had a professor care that much about a personal milestone. It made me feel incredibly special.
+But it didn't stop there. Richard and his wife, Mei, invited the entire group over for dinner at their house.
+This was the highlight. Being in a real home, eating good food, surrounded by these people who were strangers six weeks ago and are now singing to me... it was surreal. Mei is the sweetest person ever. They had two cakes (two!) and a massive flip-chart paper where everyone had scribbled wishes and drawings. It was basically a giant greeting card.
+
+I turned 20 today.
+And of course, the roasting started immediately. Everyone was teasing me about entering my "twenties" and being an old man. And honestly? As I'm writing this, my back actually hurts a little bit. Is this it? Is this the decline?
+
+My mom was really worried about today. When I called her, she was so relieved to hear I wasn't alone. She knows I've never spent a birthday away from family, and she was terrified I'd be sitting in my room by myself. Instead, I was surrounded by a new family.`
+            },
+            "2025-11-14": {
+                tag: "FOCUS",
+                headline: "Biblical Rain (Standard)in Cheddar & Wells",
+                details: `I'll be honest, when I woke up today, I was not feeling it. I was tired, the sky was grey, and the idea of sitting on a bus to go look at caves and small town in middle of nowhere felt like a chore. I almost wanted to just stay in bed.
+But the moment we stepped off the bus in Cheddar, my mood shifted. There is something about the geography here that wakes you up. We were standing right between these two massive hills—the Gorge—and even though it was pouring rain, it actually made the whole scene look better. It felt dramatic. It felt like a movie set.
+
+The Cave (Skeleton vs. Santa):
+We went caving, which was genuinely cool. We saw the spot where they found the famous "Cheddar Man" skeleton. There's still a replica of him there, chilling in the dark.
+But here is the critical/funny part: The cave was decorated with Christmas decorations. There is something so absurd about being deep underground, looking at a prehistoric skeleton replica, while surrounded by festive tinsel and lights. It's that mix of ancient history and modern commercialism that seems to happen a lot here.
+
+The Hike & The Pizza Disappointment:
+Reflection: The UK does not understand pizza. This is a recurring theme. The pizza was... not good. It was just dough and sadness. I don't know why, but finding a decent slice in this country is harder than finding a sunny day.
+
+** The Drive to "Hell" (Wells): **
+The drive to Wells took about 30 minutes, and the weather took a turn. I looked out the window, and it was dark, windy, and pouring so hard the world looked grey. It genuinely looked like we were driving into hell. It was ominous.
+But when we got there? It didn't matter. And this is my biggest takeaway from today: Adaptation.
+Back home, or in many other countries, if it rains like this, everyone runs for cover. The streets empty out. Here? The locals in Wells were walking around like it was a sunny afternoon. No one cared. And surprisingly, neither did we. We walked through the pouring rain like it was nothing.
+I realized I've stopped fighting the weather. I'm becoming like them. If I waited for the rain to stop to enjoy my life here, I'd never do anything. So, we walked in the rain, looked at the city, and enjoyed it anyway.`
+            },
+            "2025-12-05": {
+                tag: "FOCUS",
+                headline: "Status: Theatrically Overloaded at Stratford",
+                details: `We spent three days in Stratford-upon-Avon, which basically feels like walking through a Shakespeare theme park. Don't get me wrong, it's beautiful—the Tudor beams, the river, the swans—but it is relentless.
+
+We did the classics: Shakespeare's Birthplace and Holy Trinity Church (where he's buried). Standing at his grave is strange. You're looking at the final resting place of the guy who basically invented modern English storytelling. It feels heavy. But then you walk outside and buy a rubber duck that looks like Hamlet. It's that weird mix of profound history and tacky tourism again. The industry built around this one man is insane. It makes you wonder: if Shakespeare saw this today, would he write a tragedy about it or a comedy?
+
+The Theatre Marathon:
+But the real meat of the trip was the shows. We saw two plays that could not be more different: The Forsyte Saga and The BFG.
+1. The Forsyte Saga Part 2: This was... intense. It's a massive family drama about wealth, property, and obsession. Watching it, I couldn't help but draw parallels to the "Old Money" vibes I felt in Bath and the Cotswolds. The play dissects the British upper-middle class so surgically. It's all about "possession"—possessing things, possessing houses, possessing people (wives, children).
+
+2. The BFG (The Big Friendly Giant): And then, whiplash. We went from Victorian family trauma to Roald Dahl's giants. The BFG was pure magic. It was visual, inventive, and chaotic in the best way. seeing Sophie and the Giant on stage, using puppets and lighting to create scale, was incredible.
+You might think a "kids' show" has less depth than a serious drama, but I disagree. The BFG hits on something primal: the power of dreams. The BFG's job is to catch dreams and blow them into the bedrooms of sleeping children. He is the guardian of imagination against the "fleshlumpeating" giants of the world. In the bigger picture, isn't that what art is supposed to be? We live in a world full of "giants"—war, poverty, bad news (like the protests back home). We need BFGs. We need stories that protect our ability to dream and hope.
+
+Conclusion:
+Stratford was packed. It was exhausting. But seeing those two plays back-to-back was the perfect education. One forced me to analyze society, and the other reminded me why it's okay to escape it sometimes.`
+            }
+        };
+
+        /* ====================================================================
+        --- APP LOGIC ---
+        ====================================================================
+        */
+
+        // Anti-Copy Logic (Disable Right Click)
+        document.addEventListener('contextmenu', event => event.preventDefault());
+
+        // Block Ctrl+C and shortcuts
+        document.addEventListener('keydown', function(event) {
+            if (event.ctrlKey || event.metaKey) {
+                switch (String.fromCharCode(event.which).toLowerCase()) {
+                case 'c':
+                case 's':
+                case 'u':
+                case 'p':
+                    event.preventDefault();
+                    break;
+                }
+            }
+        });
+
+        // Config
+        let currentYear = 2025;
+        let currentMonth = 9; // Oct 2025 (Month is 0-indexed: 9 = Oct)
+
+        const monthNames = [
+            "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE",
+            "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"
+        ];
+
+        // Elements
+        const calendarGrid = document.getElementById('calendar-grid');
+        const monthYearDisplay = document.getElementById('month-year-display');
+        const prevBtn = document.getElementById('prev-month');
+        const nextBtn = document.getElementById('next-month');
+
+        // Sidebar Elements
+        const sidebarDate = document.getElementById('sidebar-date');
+        const sidebarHeadline = document.getElementById('sidebar-headline');
+        const sidebarDetails = document.getElementById('sidebar-details');
+        const sidebarTags = document.getElementById('sidebar-tags');
+
+        // Main Display Elements
+        const noEntryMsg = document.getElementById('no-entry-msg');
+        const journalContent = document.getElementById('journal-content');
+        const displayDate = document.getElementById('display-date');
+        const displayTag = document.getElementById('display-tag');
+        const displayTitle = document.getElementById('display-title');
+        const displayBody = document.getElementById('display-body');
+
+        function renderCalendar(year, month) {
+            // Update Header
+            monthYearDisplay.textContent = `${monthNames[month]} ${year}`;
+
+            // Clean Grid (keep headers)
+            const dayLabels = document.querySelectorAll('.calendar-day-label');
+            calendarGrid.innerHTML = '';
+            dayLabels.forEach(label => calendarGrid.appendChild(label));
+
+            // Calendar Math
+            const firstDayIndex = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            // Render Empty Days
+            for (let i = 0; i < firstDayIndex; i++) {
+                const emptyDay = document.createElement('div');
+                emptyDay.classList.add('calendar-day');
+                emptyDay.style.backgroundColor = '#f4f2ed';
+                calendarGrid.appendChild(emptyDay);
+            }
+
+            // Render Days
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dayElement = document.createElement('div');
+                dayElement.classList.add('calendar-day');
+                dayElement.textContent = i;
+
+                const formattedMonth = String(month + 1).padStart(2, '0');
+                const formattedDay = String(i).padStart(2, '0');
+                const dateString = `${year}-${formattedMonth}-${formattedDay}`;
+                
+                dayElement.dataset.date = dateString;
+
+                if (journalData[dateString]) {
+                    dayElement.classList.add('has-entry');
+                    dayElement.addEventListener('click', function() {
+                        document.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('active-date'));
+                        this.classList.add('active-date');
+                        loadEntry(dateString);
+                    });
+                }
+
+                calendarGrid.appendChild(dayElement);
+            }
+        }
+
+        function loadEntry(dateString) {
+            const entry = journalData[dateString];
+            if (entry) {
+                // Update Main Display
+                noEntryMsg.style.display = 'none';
+                journalContent.classList.add('active');
+                displayDate.textContent = dateString;
+                displayTag.textContent = `[ ${entry.tag} ]`;
+                displayTitle.textContent = entry.headline;
+                displayBody.textContent = entry.details;
+
+                // Update Sidebar Display (for show)
+                sidebarDate.value = dateString.split('-').reverse().join('/'); // DD/MM/YYYY
+                sidebarHeadline.value = entry.headline.substring(0, 30) + "...";
+                sidebarDetails.value = entry.details.substring(0, 100) + "...";
+                
+                // Sidebar Tags
+                const tags = sidebarTags.children;
+                for(let t of tags) {
+                    t.classList.remove('active-tag');
+                    if(t.textContent === entry.tag) {
+                        t.classList.add('active-tag');
+                    }
+                }
+            }
+        }
+
+        // Navigation Events
+        prevBtn.addEventListener('click', () => {
+            currentMonth--;
+            if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            }
+            renderCalendar(currentYear, currentMonth);
+        });
+
+        nextBtn.addEventListener('click', () => {
+            currentMonth++;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            }
+            renderCalendar(currentYear, currentMonth);
+        });
+
+        // Initialize
+        renderCalendar(currentYear, currentMonth);
+
+    </script>
+</body>
+</html>
